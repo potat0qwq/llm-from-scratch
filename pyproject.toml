@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "llm-from-scratch"
+version = "0.1.0"
+description = "A decoder-only language model implemented from scratch in PyTorch."
+requires-python = ">=3.10"
+
+dependencies = [
+    "torch",
+    "numpy",
+    "tqdm",
+    "matplotlib",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
