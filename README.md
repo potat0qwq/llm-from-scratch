@@ -275,7 +275,7 @@ The training objective is the token-level cross-entropy loss:
 =
 -\frac{1}{N}
 \sum_{i=1}^{N}
-\log p(x_i \mid x_{<i})
+\log p(x_i \mid x_{1:i-1})
 ```
 
 The logits are passed directly to PyTorch cross entropy without applying softmax explicitly, since the loss function internally performs the required log-softmax computation.
