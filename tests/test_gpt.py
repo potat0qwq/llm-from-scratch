@@ -100,3 +100,11 @@ def test_gpt_weight_tying():
         model.token_embedding.weight
         is model.lm_head.weight
     )
+
+def test_gpt_initialization_scale():
+    config = make_tiny_config()
+    model = GPT(config)
+
+    std = model.token_embedding.weight.std().item()
+
+    assert abs(std - 0.02) < 0.005

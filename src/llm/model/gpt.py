@@ -36,9 +36,30 @@ class GPT(nn.Module):
             bias=False,
         )
 
-        # Weight tying:
-        # input token embedding and output LM head share parameters.
+        # Initialize model weights before tying the embedding
+        # and language-model head parameters.
+        self.apply(self._init_weights)
+
+        # Weight tying.
         self.lm_head.weight = self.token_embedding.weight
+
+    def _init_weights(self, module: nn.Module) -> None:
+        if isinstance(module, nn.Linear):
+            nn.init.normal_(
+                module.weight,
+                mean=0.0,
+                std=0.02,
+            )
+
+            if module.bias is not None:
+                nn.init.zeros_(module.bias)
+
+        elif isinstance(module, nn.Embedding):
+            nn.init.normal_(
+                module.weight,
+                mean=0.0,
+                std=0.02,
+            )
 
     def forward(
         self,
