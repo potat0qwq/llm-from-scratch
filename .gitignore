@@ -28,3 +28,6 @@ Thumbs.db
 
 #pytest
 .pytest_cache/
+
+# Prepared datasets
+artifacts/data/

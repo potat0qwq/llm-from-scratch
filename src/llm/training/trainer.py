@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+import math
+from pathlib import Path
 import torch
 from torch.nn.utils import clip_grad_norm_
 from torch.utils.data import DataLoader
@@ -10,9 +12,13 @@ from llm.model.gpt import GPT
 @dataclass
 class TrainingConfig:
     learning_rate: float = 3e-4
+    min_learning_rate: float = 3e-5
+
     weight_decay: float = 0.1
 
-    max_steps: int = 500
+    max_steps: int = 1500
+    warmup_steps: int = 100
+
     grad_accum_steps: int = 1
     max_grad_norm: float = 1.0
 
@@ -20,7 +26,10 @@ class TrainingConfig:
 
     log_interval: int = 10
     eval_interval: int = 100
-    eval_batches: int = 10
+    eval_batches: int = 20
+
+    checkpoint_interval: int = 500
+    checkpoint_dir: str = "outputs/checkpoints"
 
 
 class Trainer:
@@ -62,6 +71,14 @@ class Trainer:
 
         self._train_iterator = iter(self.train_loader)
 
+        self.history = {
+            "step": [],
+            "train_loss": [],
+            "val_step": [],
+            "val_loss": [],
+            "learning_rate": [],
+        }
+
     def _next_train_batch(self):
         try:
             batch = next(self._train_iterator)
@@ -78,6 +95,10 @@ class Trainer:
 
         for step in range(1, self.config.max_steps + 1):
             total_loss = 0.0
+            learning_rate = self._get_learning_rate(step)
+
+            for param_group in self.optimizer.param_groups:
+                param_group["lr"] = learning_rate
 
             for _ in range(self.config.grad_accum_steps):
                 input_ids, targets = self._next_train_batch()
@@ -121,9 +142,16 @@ class Trainer:
             self.optimizer.zero_grad(set_to_none=True)
 
             if step % self.config.log_interval == 0:
+                self.history["step"].append(step)
+                self.history["train_loss"].append(total_loss)
+                self.history["learning_rate"].append(
+                    learning_rate
+                )
+
                 print(
                     f"step {step:5d} | "
                     f"loss {total_loss:.4f} | "
+                    f"lr {learning_rate:.2e} | "
                     f"grad_norm {grad_norm:.4f}"
                 )
 
@@ -133,12 +161,20 @@ class Trainer:
             ):
                 val_loss = self.evaluate()
 
+                self.history["val_step"].append(step)
+                self.history["val_loss"].append(val_loss)
+
                 print(
                     f"step {step:5d} | "
                     f"val_loss {val_loss:.4f}"
                 )
 
                 self.model.train()
+
+            if (
+                step % self.config.checkpoint_interval == 0
+            ):
+                self.save_checkpoint(step)
 
     @torch.inference_mode()
     def evaluate(self) -> float:
@@ -178,3 +214,64 @@ class Trainer:
             losses.append(loss.item())
 
         return sum(losses) / len(losses)
+
+    def _get_learning_rate(self, step: int) -> float:
+        if step <= self.config.warmup_steps:
+            return (
+                self.config.learning_rate
+                * step
+                / self.config.warmup_steps
+            )
+
+        progress = (
+            step - self.config.warmup_steps
+        ) / (
+            self.config.max_steps
+            - self.config.warmup_steps
+        )
+
+        cosine = 0.5 * (
+            1.0 + math.cos(math.pi * progress)
+        )
+
+        return (
+            self.config.min_learning_rate
+            + cosine
+            * (
+                self.config.learning_rate
+                - self.config.min_learning_rate
+            )
+        )
+
+    def save_checkpoint(self, step: int) -> Path:
+        checkpoint_dir = Path(
+            self.config.checkpoint_dir
+        )
+
+        checkpoint_dir.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
+
+        checkpoint_path = (
+            checkpoint_dir
+            / f"checkpoint_step_{step}.pt"
+        )
+
+        torch.save(
+            {
+                "step": step,
+                "model_config": self.model.config,
+                "model_state_dict": self.model.state_dict(),
+                "optimizer_state_dict": self.optimizer.state_dict(),
+                "training_config": self.config,
+                "history": self.history,
+            },
+            checkpoint_path,
+        )
+
+        print(
+            f"Checkpoint saved to {checkpoint_path}"
+        )
+
+        return checkpoint_path

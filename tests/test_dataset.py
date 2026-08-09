@@ -1,6 +1,10 @@
+import numpy as np
 import torch
 
-from llm.data.dataset import CausalLMDataset
+from llm.data.dataset import (
+    CausalLMDataset,
+    MemmapCausalLMDataset,
+)
 
 
 def test_dataset_shape():
@@ -44,3 +48,28 @@ def test_dataset_length():
     )
 
     assert len(dataset) == 10
+
+def test_memmap_dataset(tmp_path):
+    token_ids = np.arange(
+        101,
+        dtype=np.uint16,
+    )
+
+    data_path = tmp_path / "tokens.bin"
+
+    token_ids.tofile(data_path)
+
+    dataset = MemmapCausalLMDataset(
+        data_path=data_path,
+        seq_len=10,
+    )
+
+    input_ids, targets = dataset[0]
+
+    assert input_ids.shape == (10,)
+    assert targets.shape == (10,)
+
+    assert torch.equal(
+        input_ids[1:],
+        targets[:-1],
+    )
