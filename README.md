@@ -90,9 +90,15 @@ Next-token Logits
 
 The model uses RMSNorm instead of LayerNorm. RMSNorm normalizes hidden states using their root mean square while avoiding explicit mean centering.
 
-$$
-\mathrm{RMSNorm}(x)=\gamma\frac{x}{\sqrt{\frac{1}{d}\sum_{i=1}^{d}x_i^2+\epsilon}}
-$$
+```math
+\mathrm{RMSNorm}(x)
+=
+\gamma
+\frac{x}{
+\sqrt{
+\frac{1}{d}\sum_{i=1}^{d}x_i^2+\epsilon
+}}
+```
 
 RMSNorm is applied in a Pre-Norm configuration before both the attention and feed-forward sublayers.
 ### Rotary Position Embeddings
@@ -101,15 +107,19 @@ Rotary Position Embeddings (RoPE) are applied to the query and key vectors befor
 
 For token positions $m$ and $n$:
 
-$$
-q_m = R(m\theta)q,\qquad k_n = R(n\theta)k
-$$
+```math
+q_m = R(m\theta)q,
+\qquad
+k_n = R(n\theta)k
+```
 
 The resulting attention interaction can be written as:
 
-$$
-q_m^\top k_n = q^\top R((n-m)\theta)k
-$$
+```math
+q_m^\top k_n
+=
+q^\top R((n-m)\theta)k
+```
 
 so relative positional information is naturally encoded in the attention score.
 
@@ -117,14 +127,14 @@ so relative positional information is naturally encoded in the attention score.
 
 The attention module uses a causal mask so that each token can only attend to itself and previous tokens.
 
-$$
+```math
 \mathrm{Attention}(Q,K,V)
 =
 \mathrm{softmax}
 \left(
 \frac{QK^\top}{\sqrt{d_h}} + M
 \right)V
-$$
+```
 
 where $M$ masks all future positions.
 
@@ -132,11 +142,11 @@ where $M$ masks all future positions.
 
 The feed-forward network uses a SwiGLU activation:
 
-$$
+```math
 \mathrm{SwiGLU}(x)
 =
 \mathrm{SiLU}(xW_g)\odot(xW_u)
-$$
+```
 
 followed by a projection back to the hidden dimension.
 
@@ -260,13 +270,13 @@ For each input sequence, the model predicts the next token at every position usi
 
 The training objective is the token-level cross-entropy loss:
 
-$$
+```math
 \mathcal{L}
 =
 -\frac{1}{N}
 \sum_{i=1}^{N}
 \log p(x_i \mid x_{<i})
-$$
+```
 
 The logits are passed directly to PyTorch cross entropy without applying softmax explicitly, since the loss function internally performs the required log-softmax computation.
 
@@ -293,13 +303,13 @@ The model showed stable optimization throughout pretraining, with validation los
 
 The final validation perplexity is:
 
-$$
+```math
 \mathrm{PPL}
 =
 \exp(2.3963)
 \approx
 10.98
-$$
+```
 
 The validation loss continued to improve through the final checkpoint, with no clear sign of overfitting during this training run.
 
@@ -327,14 +337,14 @@ The model supports autoregressive text generation using multiple decoding strate
 
 For temperature-based sampling, the next-token distribution is computed as:
 
-$$
+```math
 p_i
 =
 \mathrm{softmax}
 \left(
 \frac{z_i}{T}
 \right)
-$$
+```
 
 where $T$ controls the sharpness of the probability distribution.
 
