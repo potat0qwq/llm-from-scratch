@@ -210,13 +210,13 @@ final RMSNorm → tied LM head → next-token logits
 
 For token sequence $x_1, \ldots, x_N$, training minimizes next-token cross-entropy:
 
-$$
+```math
 \mathcal{L}
 =
 -\frac{1}{N}
 \sum_{i=1}^{N}
 \log p_\theta(x_i \mid x_{1:i-1}).
-$$
+```
 
 ### Optimization and decoding
 
